@@ -3,18 +3,15 @@ use std::sync::Arc;
 use reqwest::Client;
 use serde_json::{json, Value};
 pub struct GoogleModule{
-    api_key:Option<String>,
+    api_key:String,
     client:Client
 }
 use base64::{decode, DecodeError};
 use crate::base::get_nowtime_str;
-use crate::models::MyError;
-
-fn decode_audio(audio_content_base64: &str) -> Result<Vec<u8>, MyError> {
-    decode(audio_content_base64).map_err(|e|{
-        let str_error = format!("SPEACH|| {} error: Decode speach\n", get_nowtime_str());
-        MyError::SiteError(str_error)
-    })
+use anyhow::{anyhow, Result};
+fn decode_audio(audio_content_base64: &str) -> Result<Vec<u8>> {
+   let res=decode(audio_content_base64)?;
+    Ok(res)
 }
 
 
@@ -52,19 +49,13 @@ pub fn get_language_code(language: String) -> Option<String> {
 
 }
 impl GoogleModule{
-    pub fn new()->GoogleModule{
+    pub fn new(api_key:String)->GoogleModule{
         Self{
-            api_key:None,
+            api_key,
             client:Client::new()
         }
     }
-    pub fn init(api:String)->GoogleModule{
-        Self{
-            api_key:Some(api),
-            client:Client::new()
-        }
-    }
-    pub async fn text_to_speach(google_module:Arc<GoogleModule>,text:String,name_lang:String)->Result<Vec<u8>,MyError> {
+    pub async fn text_to_speach(&self,text:String,name_lang:String)->Result<Vec<u8>> {
         let url = "https://texttospeech.googleapis.com/v1/text:synthesize";
         //sv-SE
         let body = json!({
@@ -80,30 +71,19 @@ impl GoogleModule{
         }
     });
 
-        let response = google_module.client.post(url)
-            .query(&[("key", google_module.api_key.as_ref())])
+        let response = self.client.post(url)
+            .query(&[("key", self.api_key.as_str())])
             .json(&body)
             .send()
-            .await.map_err(|e|{
-            let str_error = format!("SPEACH|| {} error: send to speach\n", get_nowtime_str());
-            MyError::SiteError(str_error)
-        })?;
+            .await?;
 
         if response.status().is_success() {
-            let audio_content = response.text().await.map_err(|e|{
-                let str_error = format!("SPEACH|| {} error: error content speach\n", get_nowtime_str());
-                MyError::SiteError(str_error)
-            })?;
-            let parsed_json: Value = serde_json::from_str(audio_content.as_str()).map_err(|e|{
-                let str_error = format!("SPEACH|| {} error: error parse speach\n", get_nowtime_str());
-                MyError::SiteError(str_error)
-            })?;
+            let audio_content = response.text().await?;
+            let parsed_json: Value = serde_json::from_str(audio_content.as_str())?;
             let audio_content = parsed_json["audioContent"].as_str().unwrap_or("");
             decode_audio(audio_content)
         } else {
-            println!("Failed to call API: {}", response.status());
-            let str_error = format!("SPEACH|| {} error: error send speach\n", get_nowtime_str());
-            Err(MyError::SiteError(str_error))
+            Err(anyhow!("respons to google is not successful"))
         }
     }
 }

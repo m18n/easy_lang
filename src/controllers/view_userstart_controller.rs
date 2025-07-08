@@ -1,15 +1,17 @@
 use actix_web::{get, HttpResponse, web};
 use ramhorns::Template;
 use crate::base::file_openString;
-use crate::models::{MyError, MysqlDB};
+use crate::models::{ DataBase};
 use crate::render_temps::InitTemplate;
 use crate::StateDb;
+use anyhow::{anyhow, Result as AnyhowResult};
+use crate::globals::Result;
 // url controller: /view/userstart/***
 
-#[get("/initdictionaries")]
-pub async fn m_init_dictionaries(state: web::Data<StateDb>)->Result<HttpResponse, MyError>{
-    let dictionaries=MysqlDB::getLanguages(state.mysql_db.clone()).await?;
-    let lang_levels=MysqlDB::getLanguagesLevels(state.mysql_db.clone()).await?;
+#[get("/init-dictionaries")]
+pub async fn init_dictionaries_page(state: web::Data<StateDb>) ->Result<HttpResponse>{
+    let dictionaries= state.database.get_languages().await?;
+    let lang_levels= state.database.get_languages_levels().await?;
     let contents = file_openString("./easy_lang_web/init_dictionaries.html").await?;
     let template=InitTemplate{
         languages:dictionaries,

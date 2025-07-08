@@ -7,15 +7,10 @@ use actix_web::{
 use actix_web::http::header;
 use futures_util::future::LocalBoxFuture;
 
-// There are two steps in middleware processing.
-// 1. Middleware initialization, middleware factory gets called with
-//    next service in chain as parameter.
-// 2. Middleware's call method gets called with normal request.
+
 pub struct NoCache;
 
-// Middleware factory is `Transform` trait
-// `S` - type of the next service
-// `B` - type of response's body
+
 impl<S, B> Transform<S, ServiceRequest> for NoCache
     where
         S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,

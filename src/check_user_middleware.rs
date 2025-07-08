@@ -14,18 +14,12 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 use sqlx::error::DatabaseError;
 use crate::cookie::create_cookie_auth_clear;
 use crate::jwt::{Claims, validate_token};
-use crate::models::{MyError, MysqlInfo};
+
 use crate::StateDb;
 
-// There are two steps in middleware processing.
-// 1. Middleware initialization, middleware factory gets called with
-//    next service in chain as parameter.
-// 2. Middleware's call method gets called with normal request.
+
 pub struct CheckUser;
 
-// Middleware factory is `Transform` trait
-// `S` - type of the next service
-// `B` - type of response's body
 impl<S, B> Transform<S, ServiceRequest> for CheckUser
     where
         S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>+ 'static,
@@ -82,11 +76,10 @@ impl<S, B> Service<ServiceRequest> for CheckUserMiddleware<S>
         let service = self.service.clone();
         Box::pin(async move {
             let state = req.app_data::<web::Data<StateDb>>().unwrap();
-            println!("Hi from start. You requested: {}", req.path());
             let token=extract_cookie(&req,"refresh_token");
             let cookie =create_cookie_auth_clear();
             let response = HttpResponse::Found()
-                .insert_header((http::header::LOCATION, "/view/login")).cookie(cookie)
+                .insert_header((http::header::LOCATION, "/login")).cookie(cookie)
                 .finish().map_into_right_body();
 
             match token {
@@ -101,7 +94,7 @@ impl<S, B> Service<ServiceRequest> for CheckUserMiddleware<S>
                                     service.call(req).await.map(ServiceResponse::map_into_left_body)
                                 }else{
                                     let response = HttpResponse::Found()
-                                        .insert_header((http::header::LOCATION, "/view/userstart/initdictionaries"))
+                                        .insert_header((http::header::LOCATION, "/userstart/initdictionaries"))
                                         .finish().map_into_right_body();
                                     Ok(ServiceResponse::new(req.into_parts().0, response))
                                 }
@@ -113,16 +106,7 @@ impl<S, B> Service<ServiceRequest> for CheckUserMiddleware<S>
 
                 }
             }
-            // if azs_db.mysql.is_none() {
-            //     drop(azs_db);
-            //     let response = HttpResponse::Found()
-            //         .insert_header((http::header::LOCATION, "/settings/dbproperties"))
-            //         .finish().map_into_right_body();
-            //     Ok(ServiceResponse::new(req.into_parts().0, response))
-            // } else {
-            //     drop(azs_db);
-            //     service.call(req).await.map(ServiceResponse::map_into_left_body)
-            // }
+
         })
 
     }

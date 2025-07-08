@@ -17,47 +17,35 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use sqlx::encode::IsNull::No;
 use crate::base::get_nowtime_str;
-use crate::models::MyError;
+use anyhow::{anyhow, Result};
+use crate::controllers::object_of_controller::ResultGptTranslate;
 
 pub struct GptModule{
-    api:Option<Client<OpenAIConfig>>,
+    api:Client<OpenAIConfig>,
 }
 // Передаємо запитт
 impl GptModule {
-    pub async fn connect()->Arc<Client<OpenAIConfig>>{
-        let client = Client::new();
-        Arc::new(client)
+    pub async fn new(api_key:String)->Self{
+        let config = OpenAIConfig::new().with_api_key(api_key);
+        let client = Client::with_config(config);
+        Self{
+            api:client
+        }
     }
-    pub async fn text_to_audio(client:Arc<Client<OpenAIConfig>>,text:String)-> std::result::Result<Bytes,MyError>{
+    pub async fn text_to_audio(&self,text:String)-> Result<Bytes>{
         let request = CreateSpeechRequestArgs::default()
             .input(text)
             .voice(Voice::Nova)
 
             .model(SpeechModel::Tts1Hd)
-            .build().map_err(|e|{
-            let str_error = format!("GPT|| {} error: build audio\n", get_nowtime_str());
-            MyError::SiteError(str_error)
-        })?;
+            .build()?;
 
-        let response = client.audio().speech(request).await.map_err(|e|{
-            let str_error = format!("GPT|| {} error: send to speach\n", get_nowtime_str());
-            MyError::SiteError(str_error)
-        })?;;
-
-        // response.save("./data/audio.mp3").await.map_err(|e|{
-        //     let str_error = format!("GPT|| {} error: save audio\n", get_nowtime_str());
-        //     MyError::SiteError(str_error)
-        // })?;
+        let response = self.api.audio().speech(request).await?;
         Ok(response.bytes)
     }
-    pub async fn send<T>(client:Arc<Client<OpenAIConfig>>, request:String) -> std::result::Result<T,MyError>
+    pub async fn send<T>(&self,request:String) -> Result<T>
         where
             T: DeserializeOwned,{
-        // if api{
-        //     let str_error = format!("GPT|| {} error: DONT CONNECT WITH API\n", get_nowtime_str());
-        //     return Err(MyError::SiteError(str_error));
-        // }
-
         let request = CreateChatCompletionRequestArgs::default()
             .max_tokens(512u16)
             .model("gpt-4o")
@@ -65,31 +53,15 @@ impl GptModule {
             .messages([
                 ChatCompletionRequestSystemMessageArgs::default()
                     .content(request)
-                    .build().map_err(|e|{
-                    let str_error = format!("GPT|| {} error: ERROR CONTENT\n", get_nowtime_str());
-                    MyError::SiteError(str_error)
-                })?
+                    .build()?
                     .into(),
             ])
-            .build().map_err(|e|{
-            let str_error = format!("GPT|| {} error: ERROR CONTENT\n", get_nowtime_str());
-            MyError::SiteError(str_error)
-        })?;
-        let response = client.chat().create(request).await;
-        if let Ok(response) = response {
-            let content=response.choices[0].message.content.clone().unwrap_or(String::new());
-            match serde_json::from_str::<T>(content.as_str()) {
-                Ok(data) => Ok(data),
-                Err(e) => {
-                    // Тут можна здійснювати додаткову обробку помилок
-                    let str_error = format!("GPT|| {} error: PARSE GPT\n", get_nowtime_str());
-                    Err(MyError::SiteError(str_error))
-                }
-            }
-        } else {
-            let str_error = format!("GPT|| {} error: GET RESPONSE GPT\n", get_nowtime_str());
-            Err(MyError::SiteError(str_error))
-        }
+            .build()?;
+        let response = self.api.chat().create(request).await?;
 
+            let content=response.choices[0].message.content.clone().ok_or(anyhow!("gpt string parsing error"))?;
+        // Deserialize the content string into type T
+        let parsed_response:T = serde_json::from_str(&content)?;
+        Ok(parsed_response)
     }
 }

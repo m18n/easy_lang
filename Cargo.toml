@@ -30,7 +30,11 @@ bytes = "1.6.0"
 reqwest = "0.11.27"
 base64 = "0.21.7"
 genanki-rs = "0.4.0"
-sqlx = { version = "0.6.1", features = ["mysql", "runtime-tokio-rustls"] }
+sqlx = { version = "0.6.1", features = ["postgres", "runtime-tokio-rustls"] }
+anyhow = "1.0.98"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter","json", "fmt"] }
+tracing-appender = "0.2.3"
 
 [build-dependencies]
 walkdir = "2.3"

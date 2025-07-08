@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use deepl::{DeepLApi, Lang};
 use crate::base::get_nowtime_str;
-use crate::models::MyError;
+use anyhow::Result;
 
 pub struct DeeplModule{
-    api:Option<DeepLApi>
+    api:DeepLApi
 }
 pub fn lang_from_name(name: String) -> Option<Lang> {
     let lang_map: HashMap<&str, Lang> = [
@@ -43,19 +43,14 @@ pub fn lang_from_name(name: String) -> Option<Lang> {
     lang_map.get(name.as_str()).cloned()
 }
 impl DeeplModule{
-    pub fn new()->Self{
-        Self{api:None}
+    pub fn new(api_key:String)->Self{
+        Self{api:DeepLApi::with(&api_key).new()}
     }
-    pub async fn connect(api_key:String)->DeepLApi{
-        DeepLApi::with(&api_key).new()
-    }
-    pub async fn translate(api:DeepLApi,from_lang:String,into_lang:String,text:String)->Result<String,MyError>{
-        let res=api.translate_text(text,lang_from_name(into_lang).unwrap())
+
+    pub async fn translate(&self,from_lang:String,into_lang:String,text:String)->Result<String>{
+        let res=self.api.translate_text(text,lang_from_name(into_lang).unwrap())
             .source_lang(lang_from_name(from_lang).unwrap())
-            .await.map_err(|e|{
-            let str_error = format!("TRANSLATOR|| {} error: {}\n", get_nowtime_str(), e.to_string());
-            MyError::SiteError(str_error)
-        })?;
+            .await?;
         let d=res.translations;
         Ok(d[0].text.clone())
     }
