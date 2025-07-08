@@ -1,6 +1,7 @@
 # Easy Lang
 
-**Easy Lang** is a web server written in Rust that makes learning English and other languages ​​easier. Using powerful technologies such as the GPT-4 API for translation and the Google API for voicing, Easy Lang helps users better understand and remember new words and phrases.
+**Easy Lang** is a web server written in Rust that makes learning English and other languages easier. Using powerful technologies such as the GPT-4 API for translation and the Google API for voicing, Easy Lang helps users better understand and remember new words and phrases.
+It is primarily designed to support Ukrainian users, helping them learn languages in a way that is intuitive and culturally relevant.
 
 ## Features
 
